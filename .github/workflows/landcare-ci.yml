@@ -1,0 +1,27 @@
+# CI/CD workflow for core-geonetwork (MetaSpace)
+#
+# Build Strategy:
+# - On push to metaspace branch: builds and pushes images to Artifactory
+# - Triggers k8s-apps-config pipeline to update manifests
+# - ArgoCD syncs the updated manifests to the cluster
+#
+# This workflow triggers a Bitbucket pipeline to update the GitOps repository.
+
+name: CI/CD
+
+on:
+  push:
+    branches: [metaspace]
+
+jobs:
+  build:
+    uses: manaakiwhenua/github-workflows/.github/workflows/docker-build.yml@main
+    with:
+      bake_file: docker-bake.hcl
+      bake_target: default
+      push: ${{ github.event_name != 'pull_request' }}
+      registry_host: ${{ vars.ARTIFACTORY_HOST }}
+      registry_username: ${{ vars.ARTIFACTORY_USERNAME }}
+    secrets:
+      ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
+      REGISTRY_CA_CERT: ${{ secrets.REGISTRY_CA_CERT }}

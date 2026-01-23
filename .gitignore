@@ -12,6 +12,7 @@ git*.properties
 */*/.*
 */*/target/
 */target/
+!.github/
 .*/
 #GeoNetwork*
 /geonetwork*
