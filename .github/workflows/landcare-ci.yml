@@ -26,3 +26,48 @@ jobs:
     secrets:
       ARTIFACTORY_TOKEN: ${{ secrets.ARTIFACTORY_TOKEN }}
       REGISTRY_CA_CERT: ${{ secrets.REGISTRY_CA_CERT }}
+
+  deploy-dev:
+    needs: build
+    if: github.ref == 'refs/heads/metaspace'
+    runs-on: ubuntu-latest
+    environment: k8s-dev
+    steps:
+      - name: Checkout for action
+        uses: actions/checkout@v4
+        with:
+          repository: manaakiwhenua/github-workflows
+          sparse-checkout: actions/k8s-deploy
+          path: .github-workflows
+
+      - name: Deploy to dev
+        uses: ./.github-workflows/actions/k8s-deploy
+        with:
+          app_name: metaspace
+          environment: dev
+          cluster: tak-k8s-nonprod
+          build_key: ${{ needs.build.outputs.build_id }}
+          bitbucket_token: ${{ secrets.K8S_APPS_CONFIG_TRIGGER_TOKEN }}
+
+      - name: Deployment Summary
+        run: |
+          cat << SUMMARY >> $GITHUB_STEP_SUMMARY
+          ## ✅ Deployment Triggered
+          
+          | Property | Value |
+          |----------|-------|
+          | Build ID | \`${{ needs.build.outputs.build_id }}\` |
+          | Environment | dev |
+          | Cluster | tak-k8s-nonprod |
+          
+          The k8s-apps-config pipeline has updated the manifests and ArgoCD will sync shortly.
+          
+          ### Prod Promotion
+          
+          To promote to production:
+          1. Go to [k8s-apps-config](https://bitbucket.org/landcareresearch/k8s-apps-config)
+          2. Update the prod deployment manifests with build ID: \`${{ needs.build.outputs.build_id }}\`
+          3. Create a Pull Request for review
+          4. After merge, ArgoCD will sync to production
+          SUMMARY
+
