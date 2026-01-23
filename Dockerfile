@@ -1,8 +1,13 @@
 FROM maven:3.8.6-openjdk-8-slim AS build
 
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY . .
+
+# Initialize git submodules (web-ui depends on bootstrap, font-awesome, bootstrap-table)
+RUN git submodule update --init --recursive
 
 RUN mvn -B -V clean package -DskipTests -Dmaven.javadoc.skip=true
 
