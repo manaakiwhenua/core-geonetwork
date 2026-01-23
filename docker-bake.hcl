@@ -1,39 +1,45 @@
-variable "BITBUCKET_PROJECT_KEY" { default = "MET"}
-variable "BITBUCKET_REPO_SLUG" { default = "metaspace"}
+// docker-bake.hcl for core-geonetwork (MetaSpace)
+//
+// Build targets for the GeoNetwork/MetaSpace application.
+// Variables are provided by the github-workflows docker-build workflow.
 
-variable "BITBUCKET_BUILD_NUMBER" { default = "" }
-variable "GIT_COMMIT_HASH_SHORT" { default = ""}
+variable "REGISTRY_PREFIX" {
+  description = "Registry path prefix provided by build workflow"
+}
 
-variable "IMAGE_PREFIX" {
-  default = "artifactory.landcareresearch.co.nz/docker/${lower(BITBUCKET_PROJECT_KEY)}/${BITBUCKET_REPO_SLUG}"
-  validation {
-    condition     = BITBUCKET_PROJECT_KEY != ""
-    error_message = "BITBUCKET_PROJECT_KEY must be set"
-  }
-  validation {
-    condition     = BITBUCKET_REPO_SLUG != ""
-    error_message = "BITBUCKET_REPO_SLUG must be set"
+variable "IMAGE_TAG" {
+  description = "Image tag provided by build workflow"
+}
+
+variable "GIT_ORIGIN" {
+  default = ""
+}
+
+variable "GIT_REVISION" {
+  default = ""
+}
+
+// Build all application images
+group "default" {
+  targets = ["geonetwork"]
+}
+
+// Shared configuration
+target "_common" {
+  platforms = ["linux/amd64"]
+  labels = {
+    "org.opencontainers.image.source"      = "${GIT_ORIGIN}"
+    "org.opencontainers.image.revision"    = "${GIT_REVISION}"
+    "org.opencontainers.image.vendor"      = "Manaaki Whenua - Landcare Research"
+    "org.opencontainers.image.title"       = "MetaSpace"
+    "org.opencontainers.image.description" = "GeoNetwork-based metadata catalogue"
   }
 }
 
-target default {
-
-    args = {
-        BUILD_NUMBER = "${BITBUCKET_BUILD_NUMBER}"
-        GIT_COMMIT_ID  = "${GIT_COMMIT_HASH_SHORT}"
-    }
-
-    tags = [
-      notequal("",GIT_COMMIT_HASH_SHORT) ? "${IMAGE_PREFIX}_geonetwork:${GIT_COMMIT_HASH_SHORT}": "",
-      notequal("",BITBUCKET_BUILD_NUMBER) ? "${IMAGE_PREFIX}_geonetwork:build-${BITBUCKET_BUILD_NUMBER}": "",
-      "${IMAGE_PREFIX}_geonetwork:latest"
-    ]
-
-    cache-from = [
-      "type=registry,ref=${IMAGE_PREFIX}_geonetwork:latest"
-    ]
-
-    context    = "."
-    dockerfile = "Dockerfile"
-
+// GeoNetwork application
+target "geonetwork" {
+  inherits   = ["_common"]
+  context    = "."
+  dockerfile = "Dockerfile"
+  tags       = ["${REGISTRY_PREFIX}/geonetwork:${IMAGE_TAG}"]
 }
