@@ -41,5 +41,5 @@ target "geonetwork" {
   inherits   = ["_common"]
   context    = "."
   dockerfile = "Dockerfile"
-  tags       = ["${REGISTRY_PREFIX}:${IMAGE_TAG}"]
+  tags       = ["${REGISTRY_PREFIX}/geonetwork:${IMAGE_TAG}"]
 }
