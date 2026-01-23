@@ -13,6 +13,10 @@ on:
   push:
     branches: [metaspace]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     uses: manaakiwhenua/github-workflows/.github/workflows/docker-build.yml@main
