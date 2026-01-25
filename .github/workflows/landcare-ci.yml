@@ -56,7 +56,7 @@ jobs:
       - name: Deployment Summary
         run: |
           cat << SUMMARY >> $GITHUB_STEP_SUMMARY
-          ## ✅ Deployment Triggered
+          ## ✅ Dev Deployment Triggered
           
           | Property | Value |
           |----------|-------|
@@ -66,12 +66,76 @@ jobs:
           
           The k8s-apps-config pipeline has updated the manifests and ArgoCD will sync shortly.
           
-          ### Prod Promotion
+          ### Next Steps
           
-          To promote to production:
-          1. Go to [k8s-apps-config](https://bitbucket.org/landcareresearch/k8s-apps-config)
-          2. Update the prod deployment manifests with build ID: \`${{ needs.build.outputs.build_id }}\`
-          3. Create a Pull Request for review
-          4. After merge, ArgoCD will sync to production
+          To promote to **test** or **production**, go to the workflow run and approve the pending deployment.
+          SUMMARY
+
+  deploy-test:
+    needs: build
+    if: github.ref == 'refs/heads/metaspace'
+    runs-on: ubuntu-latest
+    environment: k8s-test  # Configure required reviewers in GitHub repo settings
+    steps:
+      - name: Checkout for action
+        uses: actions/checkout@v4
+        with:
+          repository: manaakiwhenua/github-workflows
+          sparse-checkout: actions/k8s-deploy
+          path: .github-workflows
+
+      - name: Deploy to test
+        uses: ./.github-workflows/actions/k8s-deploy
+        with:
+          app_name: metaspace
+          environment: test
+          cluster: tak-k8s-nonprod
+          build_key: ${{ needs.build.outputs.build_id }}
+          bitbucket_token: ${{ secrets.K8S_APPS_CONFIG_TRIGGER_TOKEN }}
+
+      - name: Deployment Summary
+        run: |
+          cat << SUMMARY >> $GITHUB_STEP_SUMMARY
+          ## ✅ Test Deployment Triggered
+          
+          | Property | Value |
+          |----------|-------|
+          | Build ID | \`${{ needs.build.outputs.build_id }}\` |
+          | Environment | test |
+          | Cluster | tak-k8s-nonprod |
+          SUMMARY
+
+  deploy-prod:
+    needs: build
+    if: github.ref == 'refs/heads/metaspace'
+    runs-on: ubuntu-latest
+    environment: k8s-prod  # Configure required reviewers in GitHub repo settings
+    steps:
+      - name: Checkout for action
+        uses: actions/checkout@v4
+        with:
+          repository: manaakiwhenua/github-workflows
+          sparse-checkout: actions/k8s-deploy
+          path: .github-workflows
+
+      - name: Deploy to prod
+        uses: ./.github-workflows/actions/k8s-deploy
+        with:
+          app_name: metaspace
+          environment: prod
+          cluster: tak-k8s-prod
+          build_key: ${{ needs.build.outputs.build_id }}
+          bitbucket_token: ${{ secrets.K8S_APPS_CONFIG_TRIGGER_TOKEN }}
+
+      - name: Deployment Summary
+        run: |
+          cat << SUMMARY >> $GITHUB_STEP_SUMMARY
+          ## ✅ Production Deployment Triggered
+          
+          | Property | Value |
+          |----------|-------|
+          | Build ID | \`${{ needs.build.outputs.build_id }}\` |
+          | Environment | prod |
+          | Cluster | tak-k8s-prod |
           SUMMARY
 
