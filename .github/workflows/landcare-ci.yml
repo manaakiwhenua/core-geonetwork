@@ -72,8 +72,8 @@ jobs:
           SUMMARY
 
   deploy-test:
-    needs: build
-    if: github.ref == 'refs/heads/metaspace'
+    needs: [build, deploy-dev]
+    if: always() && needs.build.result == 'success' && github.ref == 'refs/heads/metaspace'
     runs-on: ubuntu-latest
     environment: k8s-test  # Configure required reviewers in GitHub repo settings
     steps:
@@ -106,8 +106,8 @@ jobs:
           SUMMARY
 
   deploy-prod:
-    needs: build
-    if: github.ref == 'refs/heads/metaspace'
+    needs: [build, deploy-test]
+    if: always() && needs.build.result == 'success' && github.ref == 'refs/heads/metaspace'
     runs-on: ubuntu-latest
     environment: k8s-prod  # Configure required reviewers in GitHub repo settings
     steps:
