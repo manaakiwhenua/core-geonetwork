@@ -1,13 +1,13 @@
-# CI/CD workflow for core-geonetwork (MetaSpace)
+# CI workflow for core-geonetwork (MetaSpace)
 #
 # Build Strategy:
 # - On push to metaspace branch: builds and pushes images to Artifactory
-# - Triggers k8s-apps-config pipeline to update manifests
-# - ArgoCD syncs the updated manifests to the cluster
+# - Automatically deploys to dev environment
+# - Use promote.yml workflow manually to deploy to test/prod
 #
 # This workflow triggers a Bitbucket pipeline to update the GitOps repository.
 
-name: CI/CD
+name: CI
 
 on:
   push:
@@ -15,7 +15,7 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true  # Cancel previous runs on new push
 
 jobs:
   build:
@@ -26,7 +26,7 @@ jobs:
       image_name: metaspace
       # Use self-hosted K8s runners for faster builds (central BuildKit cache)
       runs_on: tak-k8s-ci
-      push: ${{ github.event_name != 'pull_request' }}
+      push: true
       registry_host: ${{ vars.ARTIFACTORY_HOST }}
       registry_username: ${{ vars.ARTIFACTORY_USERNAME }}
     secrets:
@@ -35,7 +35,6 @@ jobs:
 
   deploy-dev:
     needs: build
-    if: github.ref == 'refs/heads/metaspace'
     runs-on: ubuntu-latest
     environment: k8s-dev
     steps:
@@ -68,76 +67,8 @@ jobs:
           
           The k8s-apps-config pipeline has updated the manifests and ArgoCD will sync shortly.
           
-          ### Next Steps
+          ### Promote to Higher Environments
           
-          To promote to **test** or **production**, go to the workflow run and approve the pending deployment.
-          SUMMARY
-
-  deploy-test:
-    needs: [build, deploy-dev]
-    if: always() && needs.build.result == 'success' && github.ref == 'refs/heads/metaspace'
-    runs-on: ubuntu-latest
-    environment: k8s-test  # Configure required reviewers in GitHub repo settings
-    steps:
-      - name: Checkout for action
-        uses: actions/checkout@v4
-        with:
-          repository: manaakiwhenua/github-workflows
-          sparse-checkout: actions/k8s-deploy
-          path: .github-workflows
-
-      - name: Deploy to test
-        uses: ./.github-workflows/actions/k8s-deploy
-        with:
-          app_name: metaspace
-          environment: test
-          cluster: tak-k8s-nonprod
-          build_key: ${{ needs.build.outputs.build_id }}
-          bitbucket_token: ${{ secrets.K8S_APPS_CONFIG_TRIGGER_TOKEN }}
-
-      - name: Deployment Summary
-        run: |
-          cat << SUMMARY >> $GITHUB_STEP_SUMMARY
-          ## ✅ Test Deployment Triggered
-          
-          | Property | Value |
-          |----------|-------|
-          | Build ID | \`${{ needs.build.outputs.build_id }}\` |
-          | Environment | test |
-          | Cluster | tak-k8s-nonprod |
-          SUMMARY
-
-  deploy-prod:
-    needs: [build, deploy-test]
-    if: always() && needs.build.result == 'success' && github.ref == 'refs/heads/metaspace'
-    runs-on: ubuntu-latest
-    environment: k8s-prod  # Configure required reviewers in GitHub repo settings
-    steps:
-      - name: Checkout for action
-        uses: actions/checkout@v4
-        with:
-          repository: manaakiwhenua/github-workflows
-          sparse-checkout: actions/k8s-deploy
-          path: .github-workflows
-
-      - name: Deploy to prod
-        uses: ./.github-workflows/actions/k8s-deploy
-        with:
-          app_name: metaspace
-          environment: prod
-          cluster: tak-k8s-prod
-          build_key: ${{ needs.build.outputs.build_id }}
-          bitbucket_token: ${{ secrets.K8S_APPS_CONFIG_TRIGGER_TOKEN }}
-
-      - name: Deployment Summary
-        run: |
-          cat << SUMMARY >> $GITHUB_STEP_SUMMARY
-          ## ✅ Production Deployment Triggered
-          
-          | Property | Value |
-          |----------|-------|
-          | Build ID | \`${{ needs.build.outputs.build_id }}\` |
-          | Environment | prod |
-          | Cluster | tak-k8s-prod |
+          To promote this build to **test** or **prod**, run the [Promote workflow](../../../actions/workflows/promote.yml) with build ID: \`${{ needs.build.outputs.build_id }}\`
           SUMMARY
 
